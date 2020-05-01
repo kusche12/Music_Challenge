@@ -1,24 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
-// API_KEY = e30ac2cef97e4cb6a6434a55d8932c4a
-
-// Update album list as user types, not just after pressing submit
-
-// Clean up UX. Make the user able to "click away" from the given album list or
-//    album placeholder selection
-// Add tons of features to the desktop (hover effects, sizing, etc.)
 
 class Box extends React.Component {
-  // changes border-color to blue and chooses this box to select an album for
+  // changes border-color and chooses this box to select an album for
   selectBox = () => {
     this.props.selectBox(this.props.boxPosition)
   }
 
   render() {
     return (
-      <div className="head-album-container" key={this.props.boxKey}>
-        <h3>{this.props.boxKey}</h3>
+      <div className="head-album-container" key={this.props.boxYear}>
+        <h3>{this.props.boxYear}</h3>
         <div className={this.props.boxClass} onClick={this.selectBox}>
           <img className="box-img" src={this.props.img} alt=""/>
         </div>
@@ -32,31 +25,30 @@ class Grid extends React.Component {
     // for each year, create a card that has the name of year as a header and a box for the album
     let years = this.props.albumFull;
     let yearsArr = [];
-    let boxKey = 2011;
+    let boxYear = 2011;
     let boxClass = '';
 
-    // if the box has a selected album, turn it on and give it an album cover
     years.forEach(year => {
       let img = '';
-      if (year === true) {
+      if (year === true) { // selected
         boxClass = 'box on';
-      } else if (year === false) {
+      } else if (year === false) { // not selected
         boxClass = 'box off';
-      } else {
+      } else { // not selected, but has an album
         boxClass = 'box off'
         img = year;
       }
       yearsArr.push(
         <Box
           boxClass={boxClass}    // box is either on or off (album chosen or not)
-          boxKey={boxKey}        // key represents the year
-          key={boxKey}
+          boxYear={boxYear}        // key represents the year
+          key={boxYear}
           img={img}
-          boxPosition={boxKey - 2011}
+          boxPosition={boxYear - 2011}
           selectBox={this.props.selectBox}
         />
       );
-      boxKey++;
+      boxYear++;
     });
 
 		return (
@@ -121,7 +113,7 @@ class App extends React.Component {
   constructor() {
     super();
     this.state = {
-      albumFull: [false, false, false, false, false, false, false, false, false, false], // 10 empty album placeholders
+      albumFull: [true, false, false, false, false, false, false, false, false, false], // 10 empty album placeholders
       search: '',
       albums: [],
     }
@@ -130,12 +122,11 @@ class App extends React.Component {
   // Allow user to select year to update
   selectBox = (position) => {
     let albumCopy = this.state.albumFull;
-
-    if (albumCopy[position] === true) { // unselect the selection
+    if (albumCopy[position] === true) { // unselect the current selection
       albumCopy[position] = false;
     } else if (albumCopy.indexOf(true) !== -1) { // another box is already selected
       albumCopy[albumCopy.indexOf(true)] = false; // unselect it
-      albumCopy[position] = !albumCopy[position]; // and select the new one
+      albumCopy[position] = !albumCopy[position];
     } else {
       albumCopy[position] = !albumCopy[position]; // no box is selected yet
     }
@@ -147,16 +138,14 @@ class App extends React.Component {
   // Allow user to select preferred album, and place it into position
   selectAlbum = (position) => {
     let albumCopy = this.state.albumFull;
-    albumCopy[albumCopy.indexOf(true)] = this.state.albums[position].image[3]['#text'] // replace the "true" with the album cover
+    albumCopy[albumCopy.indexOf(true)] = this.state.albums[position].image[2]['#text'] // replace the "true" with the album cover
     this.setState({
       albums: [],
-      search: '',
       albumFull: albumCopy,
     })
-    console.log(this.state.albumFull);
   }
 
-  // getAlbums returns albums from LastFM API
+  // Return albums from LastFM API
   getAlbums = async (e) => {
     e.preventDefault();
     if (this.state.search !== '' & this.state.albumFull.includes(true)) { // only search if input is ready and album selected
@@ -183,7 +172,7 @@ class App extends React.Component {
     return (
       <div className="main">
         <h1>10 Years of Music</h1>
-        <p>Your favorite albums of the last decade</p>
+        <p>Your favorite albums of the last decade!</p>
         <form onSubmit={this.getAlbums} className="search-form">
           <input className="search-bar" type="text" placeholder="Search for Album..." value={this.search} onChange={this.updateSearch} />
           <button className="search-button" type="submit">Search</button>
