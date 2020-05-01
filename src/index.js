@@ -3,25 +3,25 @@ import ReactDOM from 'react-dom';
 import './index.css';
 // API_KEY = e30ac2cef97e4cb6a6434a55d8932c4a
 
-// Allow user to select album
-// Update box with that album
+// Update album list as user types, not just after pressing submit
 
-// DO THESE FIRST VVVV
-// Completely rework the grid to display the 10 years and boxes appropriately
-// Make album placeholders inline pairs of two 
+// Clean up UX. Make the user able to "click away" from the given album list or
+//    album placeholder selection
+// Add tons of features to the desktop (hover effects, sizing, etc.)
 
 class Box extends React.Component {
   // changes border-color to blue and chooses this box to select an album for
   selectBox = () => {
-    console.log('you clicked me');
-    this.props.selectBox(this.props.key)
+    this.props.selectBox(this.props.boxPosition)
   }
 
   render() {
     return (
-      <div className="head-album-container">
+      <div className="head-album-container" key={this.props.boxKey}>
         <h3>{this.props.boxKey}</h3>
-        <div className={this.props.boxClass} onClick={this.selectBox}/>
+        <div className={this.props.boxClass} onClick={this.selectBox}>
+          <img className="box-img" src={this.props.img} alt=""/>
+        </div>
       </div>
     )
   }
@@ -32,20 +32,27 @@ class Grid extends React.Component {
     // for each year, create a card that has the name of year as a header and a box for the album
     let years = this.props.albumFull;
     let yearsArr = [];
-    let boxClass = '';
     let boxKey = 2011;
+    let boxClass = '';
 
+    // if the box has a selected album, turn it on and give it an album cover
     years.forEach(year => {
-      if (year) {
+      let img = '';
+      if (year === true) {
         boxClass = 'box on';
-      } else {
+      } else if (year === false) {
         boxClass = 'box off';
+      } else {
+        boxClass = 'box off'
+        img = year;
       }
-
       yearsArr.push(
         <Box
           boxClass={boxClass}    // box is either on or off (album chosen or not)
           boxKey={boxKey}        // key represents the year
+          key={boxKey}
+          img={img}
+          boxPosition={boxKey - 2011}
           selectBox={this.props.selectBox}
         />
       );
@@ -60,24 +67,54 @@ class Grid extends React.Component {
 	}
 }
 
-// Currently List receives 6 albums and displays buttons.
-// Make each button show the album cover, name, and author.
-// User chooses one, and this information is inputted into a specific box
-const List = (props) => {
-  return (
-    <div className="the-list">
-      <ul className="album-list">
-        {props.albums.map(album => (
-          <li key={album.url} className="album-container">
-            <div className="album">
-              <img src={album.image[1]['#text']} alt="album cover" className="img"/>
-              <p>{album.name}<br/>{album.artist}</p>
+// Album List Element
+class Album extends React.Component {
+  selectAlbum = () => {
+    this.props.selectAlbum(this.props.albumPosition);
+  }
+
+  render() {
+    return (
+      <div>
+        <li key={this.props.album.url} className="album-container" onClick={this.selectAlbum}>
+          <div className="album">
+            <img src={this.props.album.image[1]['#text']} alt="album cover"/>
+            <div className="text">
+              <p>{this.props.album.name}</p>
+              <p>{this.props.album.artist}</p>
             </div>
-          </li>
-        ))}      
+          </div>
+        </li>
+      </div>
+    )
+  }
+}
+
+// List of 8 albums elements
+class List extends React.Component {
+  render() {
+    let albumPosition = 0;
+    let albumList = [];
+    let albums = this.props.albums;
+
+    albums.forEach(album => {
+      albumList.push (
+        <Album 
+          selectAlbum={this.props.selectAlbum}
+          albumPosition={albumPosition}
+          key={albumPosition}
+          album={album}
+        />
+      )
+      albumPosition++;
+    });
+
+    return (
+      <ul className="the-list">
+        {albumList}
       </ul>
-    </div>
-  )
+    )
+  }
 }
 
 class App extends React.Component {
@@ -88,14 +125,42 @@ class App extends React.Component {
       search: '',
       albums: [],
     }
-    this.updateSearch = this.updateSearch.bind(this);
   }
 
-  // getAlbums returns 8 albums from Spotify API
+  // Allow user to select year to update
+  selectBox = (position) => {
+    let albumCopy = this.state.albumFull;
+
+    if (albumCopy[position] === true) { // unselect the selection
+      albumCopy[position] = false;
+    } else if (albumCopy.indexOf(true) !== -1) { // another box is already selected
+      albumCopy[albumCopy.indexOf(true)] = false; // unselect it
+      albumCopy[position] = !albumCopy[position]; // and select the new one
+    } else {
+      albumCopy[position] = !albumCopy[position]; // no box is selected yet
+    }
+    this.setState({
+      albumFull: albumCopy
+    })
+  }
+
+  // Allow user to select preferred album, and place it into position
+  selectAlbum = (position) => {
+    let albumCopy = this.state.albumFull;
+    albumCopy[albumCopy.indexOf(true)] = this.state.albums[position].image[3]['#text'] // replace the "true" with the album cover
+    this.setState({
+      albums: [],
+      search: '',
+      albumFull: albumCopy,
+    })
+    console.log(this.state.albumFull);
+  }
+
+  // getAlbums returns albums from LastFM API
   getAlbums = async (e) => {
     e.preventDefault();
-    if (this.state.search !== '') { // only search if input is ready
-      const response = await fetch(`http://ws.audioscrobbler.com/2.0/?method=album.search&album=${this.state.search}&limit=8&api_key=e30ac2cef97e4cb6a6434a55d8932c4a&format=json`);
+    if (this.state.search !== '' & this.state.albumFull.includes(true)) { // only search if input is ready and album selected
+      const response = await fetch(`http://ws.audioscrobbler.com/2.0/?method=album.search&album=${this.state.search}&limit=20&api_key=e30ac2cef97e4cb6a6434a55d8932c4a&format=json`);
       const data = await response.json();
       this.setState({
         albums: data.results.albummatches.album
@@ -107,7 +172,6 @@ class App extends React.Component {
     }
   }
 
-  // updateSearch function (display 5 albums that resemble user search)
   updateSearch = e => {
     this.setState({
       search: e.target.value
@@ -119,7 +183,7 @@ class App extends React.Component {
     return (
       <div className="main">
         <h1>10 Years of Music</h1>
-        <p>"you are what you listen to"</p>
+        <p>Your favorite albums of the last decade</p>
         <form onSubmit={this.getAlbums} className="search-form">
           <input className="search-bar" type="text" placeholder="Search for Album..." value={this.search} onChange={this.updateSearch} />
           <button className="search-button" type="submit">Search</button>
@@ -128,6 +192,7 @@ class App extends React.Component {
         {albums.length > 0 && 
         <List 
           albums={albums}
+          selectAlbum={this.selectAlbum}
         />
         }
         <Grid 
@@ -139,8 +204,6 @@ class App extends React.Component {
     );
   }
 }
-
-
 
 ReactDOM.render(
   <App />,
